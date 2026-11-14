@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.5
+// @version      1.3.6
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -18,6 +18,7 @@
 // @grant        GM_setClipboard
 // @grant        GM_getTab
 // @grant        GM_saveTab
+// @grant        GM_openInTab
 // @connect      api.telegram.org
 // @connect      remoteok.com
 // @connect      remotive.com
@@ -146,7 +147,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.5';
+  const VERSION = '1.3.6';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
@@ -417,10 +418,48 @@
 
   let badge;
   // Vigilante: si la pestaña quedó congelada/suspendida y pasó la hora prevista, recarga para seguir.
-  let dueAt = 0;
-  const due = (ms) => { dueAt = Date.now() + ms; };
+  let dueAt = 0, CURMODE = null, CURID = null;
+  const FORCE = /zscan|zgen/.test(location.hash);   // inicio explícito por enlace: toma el relevo
+  const START = {
+    upwork: 'https://www.upwork.com/nx/find-work/best-matches#zscan',
+    facebook: 'https://www.facebook.com/groups/1025454714150122/?sorting_setting=CHRONOLOGICAL#zscan',
+    general: 'https://www.workana.com/jobs?category=it-programming#zgen',
+  };
+  const newId = () => Math.random().toString(36).slice(2, 10);
+  // Latido: cada pestaña anota hasta cuándo debería volver a dar señales. Si se pasa 15 min, se la considera muerta.
+  function beat(until) {
+    if (!CURMODE) return;
+    const H = GM_getValue('hb', {});
+    H[CURMODE] = { id: CURID, t: until };
+    GM_setValue('hb', H);
+  }
+  const due = (ms) => { dueAt = Date.now() + ms; beat(dueAt); };
+  // Si otra pestaña del mismo tipo está viva (p. ej. una reabierta), esta cede para no duplicar.
+  function otherAlive(mode, id) {
+    const h = GM_getValue('hb', {})[mode];
+    return !!(h && h.id !== id && Date.now() < h.t + 15 * 60e3);
+  }
+  function setEnabled(mode, on) { const E = GM_getValue('enabled', {}); E[mode] = on; GM_setValue('enabled', E); }
+  // Autocuración: si una pestaña del escáner está muerta (cerrada, descartada por Chrome, congelada), abre otra.
+  function heal() {
+    const h0 = hourNow();
+    if (h0 < CFG.activeFrom + 0.25 || h0 >= CFG.activeTo) return;
+    const E = GM_getValue('enabled', {}), H = GM_getValue('hb', {});
+    for (const m of Object.keys(START)) {
+      if (!E[m] || m === CURMODE) continue;
+      const h = H[m];
+      if (h && Date.now() < h.t + 15 * 60e3) continue;
+      const L = GM_getValue('healLock', {});
+      if (Date.now() - (L[m] || 0) < 20 * 60e3) continue;
+      L[m] = Date.now(); GM_setValue('healLock', L);
+      const gap = h ? Math.round((Date.now() - h.t) / 6e4) : null;
+      diagErr('reabierta:' + m);
+      tg(`Escáner: la pestaña ${m} estaba detenida${gap ? ' ~' + gap + ' min' : ''}; abrí una nueva automáticamente.`, { silent: true });
+      GM_openInTab(START[m], { active: false, insert: true });
+    }
+  }
   function watchdog() {
-    const check = () => { if (dueAt && Date.now() > dueAt + 3 * 60e3) { dueAt = 0; location.reload(); } };
+    const check = () => { if (dueAt && Date.now() > dueAt + 3 * 60e3) { dueAt = 0; location.reload(); return; } heal(); };
     setInterval(check, 60e3);
     document.addEventListener('visibilitychange', check);
     document.addEventListener('resume', check);
@@ -460,6 +499,13 @@
   }
 
   async function run() {
+    CURMODE = host;
+    if (!sessionStorage.zid) sessionStorage.zid = newId();
+    CURID = sessionStorage.zid;
+    if (!FORCE && otherAlive(host, CURID)) { delete sessionStorage.zscan; showBadge('detenido: otra pestaña tomó el relevo'); return; }
+    const prev = (GM_getValue('hb', {})[host] || {});
+    if (prev.id === CURID && Date.now() > prev.t + 15 * 60e3) diagErr(host + ':pausa_' + Math.round((Date.now() - prev.t) / 36e5) + 'h');
+    due(5 * 60e3);
     flush();
     dailySummary();
     weeklyReport();
@@ -558,8 +604,8 @@
   async function torreJobs() {
     const out = [];
     for (const skill of ['node.js', 'typescript', 'python', 'nestjs']) {
-      const j = await gmJson('POST', 'https://search.torre.co/opportunities/_search/?offset=0&size=30&aggregate=false',
-        { and: [{ 'skill/role': { text: skill, proficiency: 'proficient' } }, { remote: { term: true } }] });
+      const j = await gmJson('POST', 'https://search.torre.co/opportunities/_search/?currency=USD%24&periodicity=hourly&lang=es&size=30&aggregate=false&offset=0',
+        { and: [{ 'skill/role': { text: skill, experience: 'potential-to-develop' } }, { remote: { term: true } }] });
       (j.results || []).forEach((x) => {
         const c = x.compensation && x.compensation.data;
         out.push({ id: x.id, title: x.objective || '', co: ((x.organizations || [])[0] || {}).name || '',
@@ -752,6 +798,11 @@
   }
 
   async function runGeneral(tab) {
+    CURMODE = 'general';
+    if (!tab.zid) { tab.zid = newId(); GM_saveTab(tab); }
+    CURID = tab.zid;
+    if (!FORCE && otherAlive('general', CURID)) { tab.zgen = false; GM_saveTab(tab); showBadge('detenido: otra pestaña tomó el relevo'); return; }
+    due(5 * 60e3);
     flush(); dailySummary(); weeklyReport();
     await runApis();
     const G = CFG.general, n = G.sources.length;
@@ -802,17 +853,19 @@
 
   async function startGeneral() {
     const t = await getTab();
-    t.zgen = true; t.gi = 0; t.gfail = 0;
-    GM_saveTab(t);
+    t.zgen = true; t.gi = 0; t.gfail = 0; t.zid = newId();
+    GM_saveTab(t); setEnabled('general', true);
     location.assign(CFG.general.sources[0].url);
   }
 
   /* ======================= MENÚ ======================= */
   function startScan() {
+    setEnabled(host, true); delete sessionStorage.zid;
     sessionStorage.zscan = host; sessionStorage.zidx = 0; sessionStorage.zfail = 0;
     location.assign(pageUrl(0));
   }
   function stopScan() {
+    if (CURMODE) setEnabled(CURMODE, false);
     delete sessionStorage.zscan;
     getTab().then((t) => { t.zgen = false; GM_saveTab(t); });
     if (badge) badge.remove();
@@ -853,6 +906,7 @@
   GM_registerMenuCommand(host === 'other' ? 'Iniciar escaneo GENERAL en esta pestaña' : `Iniciar escaneo ${host} en esta pestaña`, host === 'other' ? startGeneral : startScan);
   GM_registerMenuCommand('Iniciar escaneo GENERAL (Workana, LinkedIn, etc.) en esta pestaña', startGeneral);
   GM_registerMenuCommand('Detener escaneo en esta pestaña', stopScan);
+  GM_registerMenuCommand('Abrir escáner completo (3 pestañas)', () => { Object.values(START).forEach((u) => GM_openInTab(u, { active: false, insert: true })); });
   GM_registerMenuCommand('Configurar Telegram', setupTelegram);
   GM_registerMenuCommand('Probar Telegram', () => tg('Prueba de Lead Scanner ✔', { silent: false }));
   GM_registerMenuCommand('Ver estado', showStatus);
@@ -862,11 +916,11 @@
   });
   GM_registerMenuCommand('Olvidar avisos enviados (reset)', () => { if (confirm('¿Borrar el historial de avisos?')) GM_setValue('seen', {}); });
 
-  if (location.hash.includes('zscan')) { sessionStorage.zscan = host; sessionStorage.zidx = 0; }
+  if (location.hash.includes('zscan') && host !== 'other') { if (sessionStorage.zscan !== host) { delete sessionStorage.zid; sessionStorage.zidx = 0; } sessionStorage.zscan = host; setEnabled(host, true); }
   if (location.hash.includes('zgen')) {   // arranque de la pestaña GENERAL por enlace (…#zgen)
-    getTab().then((t) => { if (!t.zgen) { t.zgen = true; t.gi = 0; t.gfail = 0; GM_saveTab(t); } history.replaceState(null, '', location.href.split('#')[0]); watchdog(); runGeneral(t); });
+    getTab().then((t) => { setEnabled('general', true); if (!t.zgen) { t.zgen = true; t.gi = 0; t.gfail = 0; t.zid = newId(); GM_saveTab(t); } history.replaceState(null, '', location.href.split('#')[0]); watchdog(); runGeneral(t); });
     return;
   }
   if (host !== 'other' && sessionStorage.zscan === host) { watchdog(); run(); }
-  else getTab().then((t) => { if (t.zgen) { watchdog(); runGeneral(t); } else flush(); });
+  else getTab().then((t) => { if (t.zgen) { watchdog(); runGeneral(t); } else { flush(); setTimeout(heal, 15000); } });
 })();
