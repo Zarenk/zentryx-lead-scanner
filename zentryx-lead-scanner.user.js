@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.1
+// @version      1.3.2
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -41,7 +41,7 @@
   const FB_RECENT = '&filters=eyJyZWNlbnRfcG9zdHM6MCI6IntcIm5hbWVcIjpcInJlY2VudF9wb3N0c1wiLFwiYXJnc1wiOlwiXCJ9IiwicnBfY2hyb25vX3NvcnQ6MCI6IntcIm5hbWVcIjpcImNocm9ub3NvcnRcIixcImFyZ3NcIjpcIlwifSJ9';
 
   const CFG = {
-    activeFrom: 6, activeTo: 24,       // horas Lima en que escanea (fuera de eso duerme)
+    activeFrom: 6, activeTo: 23,       // horas Lima en que escanea (fuera de eso duerme)
     quietFrom: 23, quietTo: 7,         // avisos silenciosos (sin sonido) en este rango
     summaryHour: 21,                   // resumen diario por Telegram
     upwork: {
@@ -56,8 +56,8 @@
       ],
     },
     facebook: {
-      cycleMin: 25,                    // un ciclo completo (feeds + búsquedas) cada ~25 min
-      scrolls: 12,
+      cycleMin: 40,                    // un ciclo completo (feeds + búsquedas) cada ~40 min (ritmo humano, cuenta personal)
+      scrolls: 10,
       maxAgeHFeed: 12, maxAgeHSearch: 48,
       feeds: [
         'https://www.facebook.com/groups/1025454714150122/?sorting_setting=CHRONOLOGICAL', // Programadores-Perú
@@ -70,7 +70,7 @@
       searchTerms: ['busco programador', 'sistema', 'necesito', 'cotización', 'desarrollador', 'app', 'ERP', 'requiero'],
       // Búsqueda global de publicaciones recientes en TODO Facebook (grupos públicos de LATAM, etc.)
       globalTerms: ['busco programador', 'necesito un sistema', 'busco desarrollador web', 'necesito una app', 'cotizar sistema', 'busco desarrollador full stack', 'necesito automatizar'],
-      searchesPerCycle: 3,             // búsquedas (en grupos + globales) rotativas por ciclo
+      searchesPerCycle: 2,             // búsquedas (en grupos + globales) rotativas por ciclo
     },
     // Pestaña "general": rota por estas webs (necesitan navegador; LinkedIn usa tu sesión).
     general: {
@@ -146,7 +146,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.1';
+  const VERSION = '1.3.2';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
