@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.0
+// @version      1.3.1
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -146,7 +146,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.0';
+  const VERSION = '1.3.1';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
@@ -846,6 +846,10 @@
   GM_registerMenuCommand('Olvidar avisos enviados (reset)', () => { if (confirm('¿Borrar el historial de avisos?')) GM_setValue('seen', {}); });
 
   if (location.hash.includes('zscan')) { sessionStorage.zscan = host; sessionStorage.zidx = 0; }
+  if (location.hash.includes('zgen')) {   // arranque de la pestaña GENERAL por enlace (…#zgen)
+    getTab().then((t) => { if (!t.zgen) { t.zgen = true; t.gi = 0; t.gfail = 0; GM_saveTab(t); } history.replaceState(null, '', location.href.split('#')[0]); runGeneral(t); });
+    return;
+  }
   if (host !== 'other' && sessionStorage.zscan === host) run();
   else getTab().then((t) => (t.zgen ? runGeneral(t) : flush()));
 })();
