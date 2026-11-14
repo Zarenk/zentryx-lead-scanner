@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.2
+// @version      1.3.3
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -107,7 +107,7 @@
   /* ======================= FILTROS UPWORK ======================= */
   const UP_POS = /\b(nest\.?js|node\.?js|typescript|javascript|next\.?js|react|postgres(ql)?|prisma|fastapi|python|django|flask|stripe|ai agents?|agents?|agentic|llm|claude|anthropic|openai|gpt|chatgpt|rag|mcp|supabase|saas|webhooks?|bullmq|redis|api|backend|full[- ]?stack|automation|langchain|langgraph|pgvector|multi-tenant|erp|docker|express|graphql|sql|n8n|chatbot|ai)\b/gi;
   const UP_CORE = /\b(nest|node|typescript|next|react|python|fastapi|stripe|ai (agent|engineer|developer|automation)|agent|llm|claude|openai|gpt|rag|mcp|backend|full[- ]?stack|saas|api|automation|chatbot|supabase|postgres)/i;
-  const UP_NEG = /\b(wordpress|elementor|shopify theme|php|laravel|java\b|spring boot|golang|rust|flutter|swift|kotlin|unity|unreal|german|deutsch|solidity|web3|blockchain|data entry|video edit|graphic design|logo design|bubble\.io|webflow|wix|squarespace|salesforce|aem|qa engineer|manual test|tester|glide|must be (located|based) in|us only|usa only|only us|uk only|us citizens?|onsite|on-site|scraping|scraper|pakistan|india|philippines|bangladesh|copywrit\w*|writer|voice ?over|songs?|drama|music|annotat\w*|data label\w*|evaluate (a |the )?(new )?(foundation )?models?|rlhf|tutor|video ads)\b/i;
+  const UP_NEG = /\b(wordpress|elementor|shopify theme|php|laravel|java\b|spring boot|golang|rust|flutter|swift|kotlin|unity|unreal|german|deutsch|solidity|web3|blockchain|data entry|video edit|graphic design|logo design|bubble\.io|webflow|wix|squarespace|salesforce|aem|qa engineer|manual test|tester|glide|must be (located|based) in|us only|usa only|only us|uk only|us citizens?|onsite|on-site|scraping|scraper|pakistan|india|philippines|bangladesh|copywrit\w*|writer|voice ?over|songs?|drama|music|annotat\w*|data label\w*|evaluate (a |the )?(new )?(foundation )?models?|rlhf|tutor|video ads|tutorial videos?|screen recording|voice|ugc|video editor|animator)\b/i;
   const UP_SCAM = /(client interviews|on (my|our) behalf|your (upwork )?account|account (rental|sharing)|\bbidder\b|lead generation partner|pay (you )?per interview|telegram me|whatsapp me)/i;
 
   /* ======================= FILTROS FACEBOOK ======================= */
@@ -146,7 +146,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.2';
+  const VERSION = '1.3.3';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
