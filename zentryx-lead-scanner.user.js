@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.4
+// @version      1.3.5
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -146,7 +146,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.4';
+  const VERSION = '1.3.5';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
@@ -416,6 +416,16 @@
   const pageUrl = (i) => (host === 'upwork' ? CFG.upwork.pages[i] : fbUrl(i).url);
 
   let badge;
+  // Vigilante: si la pestaña quedó congelada/suspendida y pasó la hora prevista, recarga para seguir.
+  let dueAt = 0;
+  const due = (ms) => { dueAt = Date.now() + ms; };
+  function watchdog() {
+    const check = () => { if (dueAt && Date.now() > dueAt + 3 * 60e3) { dueAt = 0; location.reload(); } };
+    setInterval(check, 60e3);
+    document.addEventListener('visibilitychange', check);
+    document.addEventListener('resume', check);
+    window.addEventListener('focus', check);
+  }
   function showBadge(text) {
     if (!badge) {
       badge = document.createElement('div');
@@ -434,6 +444,7 @@
     const next = (i + 1) % pageCount();
     const at = new Date(Date.now() + delay);
     showBadge(`${label} · siguiente ${at.toLocaleTimeString().slice(0, 5)}`);
+    due(delay);
     setTimeout(() => {
       if (sessionStorage.zscan !== host) return;
       if (host === 'facebook' && next === 0) GM_setValue('fbSearchIdx', GM_getValue('fbSearchIdx', 0) + CFG.facebook.searchesPerCycle);
@@ -444,6 +455,7 @@
 
   function retrySame(i, delay, label) {
     showBadge(label);
+    due(delay);
     setTimeout(() => { if (sessionStorage.zscan === host) location.assign(pageUrl(i)); }, delay);
   }
 
@@ -459,6 +471,7 @@
       const wake = new Date(); wake.setHours(CFG.activeFrom, 5, 0, 0);
       if (wake < new Date()) wake.setDate(wake.getDate() + 1);
       showBadge('en pausa nocturna');
+      due(wake - new Date());
       setTimeout(() => location.assign(pageUrl(i)), wake - new Date());
       return;
     }
@@ -469,6 +482,7 @@
     if (!onScanPage && !/login|account-security/.test(location.pathname)) { location.assign(pageUrl(i)); return; }
 
     showBadge(`escaneando ${i + 1}/${pageCount()}…`);
+    due(4 * 60e3);
     let r;
     try {
       r = host === 'upwork' ? await scanUpwork(CFG.upwork) : await scanFB(CFG.facebook, fbUrl(i).search);
@@ -749,12 +763,14 @@
       const wake = new Date(); wake.setHours(CFG.activeFrom, 10, 0, 0);
       if (wake < new Date()) wake.setDate(wake.getDate() + 1);
       showBadge('general en pausa nocturna');
+      due(wake - new Date());
       setTimeout(() => location.assign(src.url), wake - new Date());
       return;
     }
     if (location.hostname !== new URL(src.url).hostname) { location.assign(src.url); return; }
 
     showBadge(`general: ${src.name} (${i + 1}/${n})…`);
+    due(4 * 60e3);
     let r;
     try { r = await scanGeneric(src); } catch (e) { r = { error: e.message }; }
     diagMirrorAny();
@@ -776,6 +792,7 @@
     const u = next();
     const delay = jitter(G.dwellMin * 60e3);
     showBadge(`general: ${src.name} ${r.warm ? 'memorizado (1ª vez)' : r.leads.length + ' nuevo(s)'} de ${r.n} · siguiente ${new Date(Date.now() + delay).toLocaleTimeString().slice(0, 5)}`);
+    due(delay);
     setTimeout(async () => { const t = await getTab(); if (t.zgen) location.assign(u); }, delay);
   }
 
@@ -847,9 +864,9 @@
 
   if (location.hash.includes('zscan')) { sessionStorage.zscan = host; sessionStorage.zidx = 0; }
   if (location.hash.includes('zgen')) {   // arranque de la pestaña GENERAL por enlace (…#zgen)
-    getTab().then((t) => { if (!t.zgen) { t.zgen = true; t.gi = 0; t.gfail = 0; GM_saveTab(t); } history.replaceState(null, '', location.href.split('#')[0]); runGeneral(t); });
+    getTab().then((t) => { if (!t.zgen) { t.zgen = true; t.gi = 0; t.gfail = 0; GM_saveTab(t); } history.replaceState(null, '', location.href.split('#')[0]); watchdog(); runGeneral(t); });
     return;
   }
-  if (host !== 'other' && sessionStorage.zscan === host) run();
-  else getTab().then((t) => (t.zgen ? runGeneral(t) : flush()));
+  if (host !== 'other' && sessionStorage.zscan === host) { watchdog(); run(); }
+  else getTab().then((t) => { if (t.zgen) { watchdog(); runGeneral(t); } else flush(); });
 })();
