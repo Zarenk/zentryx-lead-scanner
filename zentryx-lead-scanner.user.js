@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.3
+// @version      1.3.4
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -113,7 +113,7 @@
   /* ======================= FILTROS FACEBOOK ======================= */
   const FB_B = /(busc(o|amos|a)\b|necesit|requier|cotiz|se busca|vacante|convocatoria|contrat(ar|amos)|solicit|presupuesto|quien (me )?(haga|desarrolle|pueda)|quien sepa|alguien que (sepa|pueda|haga)|interesados? (escrib|envi)|env[ií]en (su )?cv|dejar contacto|recomi[eé]nden(me)? (un|a|alg)|cu[aá]nto (cobran|costar[ií]a|me cobrar))/i;
   const FB_T = /(sistema|software|app\b|aplicaci|web|programador|desarrollador|developer|full ?stack|backend|erp|punto de venta|\bpos\b|factura|bot\b|chatbot|\bia\b|inteligencia artificial|automatiz|plataforma|integraci|\bapi|node|python|react|next|nest|claude|agente|scraping|tienda virtual|e-?commerce|landing|base de datos|inventario|whatsapp|crm|reservas|delivery)/i;
-  const FB_X = /(ofrezco|ofrecemos|brindamos|realiz(o|amos)|hacemos (p[aá]ginas|sistemas|apps)|desarrollo de software para|somos (una )?(empresa|agencia)|cursos?\b|clases|aprende|carrera|bootcamp|promoci[oó]n|descuento|busco (empleo|trabajo|nuevos proyectos|proyectos|oportunidad|clientes)|estoy buscando (empleo|trabajo)|practicantes|soy (programador|desarrollador|ingeniero|estudiante)|mi portafolio|disponible para|encuestador|embajador|asistente virtual|community manager|link de mega|power bi|presencial|cofundador|socio|ofrecer tus servicios|as[ií] quedar[ií]a tu negocio|sistema a la medida para)/i;
+  const FB_X = /(ofrezco|ofrecemos|brindamos|realiz(o|amos)|hacemos (p[aá]ginas|sistemas|apps)|desarrollo de software para|somos (una )?(empresa|agencia)|cursos?\b|clases|aprende|carrera|bootcamp|promoci[oó]n|descuento|busco (empleo|trabajo|nuevos proyectos|proyectos|oportunidad|clientes)|estoy buscando (empleo|trabajo)|practicantes|soy (programador|desarrollador|ingeniero|estudiante)|mi portafolio|disponible para|encuestador|embajador|asistente virtual|community manager|link de mega|power bi|presencial|cofundador|socio|ofrecer tus servicios|as[ií] quedar[ií]a tu negocio|sistema a la medida para|hosting|reseller|demo gratis|vendo |venta de)/i;
 
   /* ======================= UTILIDADES ======================= */
   const host = location.hostname.includes('upwork') ? 'upwork' : location.hostname.includes('facebook') ? 'facebook' : 'other';
@@ -146,7 +146,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.3';
+  const VERSION = '1.3.4';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
@@ -563,7 +563,7 @@
     if (!story) return [];
     const since = Math.floor(Date.now() / 1000) - 3 * 86400;
     const j = await gmJson('GET', `https://hn.algolia.com/api/v1/search_by_date?tags=comment,story_${story.objectID}&hitsPerPage=200&numericFilters=created_at_i>${since}`);
-    return (j.hits || []).filter((h) => !h.parent_id || String(h.parent_id) === String(story.objectID)).map((h) => {
+    return (j.hits || []).filter((h) => (!h.parent_id || String(h.parent_id) === String(story.objectID)) && !/^\s*(seeking (work|freelance)|available|for hire)/i.test((h.comment_text || '').replace(/<[^>]+>/g, ' '))).map((h) => {
       const txt = (h.comment_text || '').replace(/<[^>]+>/g, ' ').replace(/&#x2F;/g, '/').replace(/&amp;/g, '&').replace(/&#x27;/g, "'");
       const first = txt.split(/\n| \| /).slice(0, 4).join(' | ').slice(0, 140);
       const remote = /remote/i.test(txt);
