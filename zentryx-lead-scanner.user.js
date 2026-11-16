@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.6
+// @version      1.3.7
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -147,7 +147,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.6';
+  const VERSION = '1.3.7';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
@@ -752,7 +752,8 @@
     if (kind === 'project') {
       const pos = [...new Set(low.match(GEN_POS) || [])];
       if (pos.length < 2 && !JOB_TITLE.test(title)) w.push('stack');
-      const n = (low.match(PROJ_NEG) || [])[0];
+      // Excluir solo si la tecnología ajena está en el título, o si en el texto no hay nada de tu stack principal.
+      const n = (title.toLowerCase().match(PROJ_NEG) || [])[0] || (!/(node|nest|next|typescript|python|fastapi|react|postgres|\bia\b|\bai\b|llm|chatbot|whatsapp|api)/i.test(t) ? (low.match(PROJ_NEG) || [])[0] : null);
       if (n) w.push('excl:' + n);
     } else {
       if (!JOB_TITLE.test(title)) w.push('titulo');
