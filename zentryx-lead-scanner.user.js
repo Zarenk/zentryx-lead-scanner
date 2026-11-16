@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.9
+// @version      1.4.0
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -147,7 +147,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.9';
+  const VERSION = '1.4.0';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
@@ -297,12 +297,16 @@
       const rateOK = hr[1] ? maxRate >= 25 : fx ? +fx.replace(/,/g, '') >= 200 : true;
       const pos = [...new Set((x.toLowerCase().match(UP_POS) || []))];
       const stackOK = pos.length >= 3 || (pos.length >= 2 && UP_CORE.test(title));
+      // El título debe ser de desarrollo, no de marketing/ventas/diseño/asistencia.
+      const devTitle = /(develop|engineer|programm|coder|full[- ]?stack|back[- ]?end|front[- ]?end|api|integrat|automat|build|bot\b|agent|saas|mvp|app\b|web app|platform|script|fix|debug|migrat|architect|technical|devops|database|scrap)/i.test(title);
+      const nonDevTitle = /(assistant|\bva\b|virtual assistant|marketing|marketer|seo|google ads|ads specialist|link building|\bpr\b|outreach|sales|closer|affiliate|recruit|copywrit|writer|content|social media|designer|figma|ui\/ux|ux\/ui|video|editor|tutor|coach|bookkeep|accountant|customer (service|support)|answering|appointment setter|lead gen|data entry|\bea\b|mt[45]|forex|trading bot)/i.test(title);
 
       const why = [];
       if (!/Payment verified/.test(x)) why.push('sin_pago');
       if (!(pm <= 15 || (pm <= 20 && sp >= 5e4))) why.push('propuestas');
       if (!rateOK) why.push('tarifa');
       if (!stackOK) why.push('stack');
+      if (!devTitle || nonDevTitle) why.push('titulo_no_dev');
       const neg = (x.match(UP_NEG) || [])[0];
       if (neg) why.push('excl:' + neg.toLowerCase());
       if (UP_SCAM.test(x)) why.push('estafa');
