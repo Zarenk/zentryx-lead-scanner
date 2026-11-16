@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.3.7
+// @version      1.3.8
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -99,7 +99,7 @@
 
   /* ======================= FILTROS OTRAS FUENTES ======================= */
   const GEN_POS = /\b(nest\.?js|node\.?js|typescript|javascript|next\.?js|react|postgres(ql)?|prisma|fastapi|python|django|stripe|agentes?|agents?|llm|claude|openai|gpt|chatgpt|rag|supabase|saas|api|backend|full[- ]?stack|automatizaci[oó]n|automation|chatbot|bot|erp|sistema|aplicaci[oó]n web|web app|plataforma|integraci[oó]n|inteligencia artificial|ia|ai|scraping|n8n|whatsapp|base de datos|sql)\b/gi;
-  const PROJ_NEG = /\b(wordpress|elementor|shopify|php|laravel|java\b|golang|rust|flutter|swift|kotlin|unity|unreal|solidity|web3|blockchain|data entry|dise[nñ]o gr[aá]fico|graphic design|logo|video|wix|webflow|bubble|salesforce|tester|manual test|seo\b|redacci[oó]n|traducci[oó]n|community manager)\b/i;
+  const PROJ_NEG = /\b(casino|gambling|betting|apuestas|signals bot|forex|wordpress|elementor|shopify|php|laravel|java\b|golang|rust|flutter|swift|kotlin|unity|unreal|solidity|web3|blockchain|data entry|dise[nñ]o gr[aá]fico|graphic design|logo|video|wix|webflow|bubble|salesforce|tester|manual test|seo\b|redacci[oó]n|traducci[oó]n|community manager)\b/i;
   const JOB_TITLE = /(node|nest|next\.?js|typescript|javascript|full ?-?stack|back ?-?end|software (engineer|developer)|desarrollador|programador|python|fastapi|react|ai engineer|llm|ingenier[oa] de software|web developer|integration)/i;
   const JOB_NEG = /\b(java\b|\.net|c#|php|ruby|golang|rust|ios|android|flutter|salesforce|sap\b|qa\b|tester|intern|internship|pr[aá]cticas?|practicante|trainee|junior|jr\.?|mainframe|cobol|embedded|firmware|devops|sre|data engineer|data scientist|designer|dise[nñ]ador)\b/i;
   const LOC_BAD = /(us only|usa only|united states only|u\.s\. only|us citizens?|must (be|reside|live) in (the )?(us|usa|united states|uk|eu|europe|canada)|europe only|eu only|uk only|emea only|on-?site|presencial|h[ií]brido|hybrid)/i;
@@ -108,7 +108,7 @@
   /* ======================= FILTROS UPWORK ======================= */
   const UP_POS = /\b(nest\.?js|node\.?js|typescript|javascript|next\.?js|react|postgres(ql)?|prisma|fastapi|python|django|flask|stripe|ai agents?|agents?|agentic|llm|claude|anthropic|openai|gpt|chatgpt|rag|mcp|supabase|saas|webhooks?|bullmq|redis|api|backend|full[- ]?stack|automation|langchain|langgraph|pgvector|multi-tenant|erp|docker|express|graphql|sql|n8n|chatbot|ai)\b/gi;
   const UP_CORE = /\b(nest|node|typescript|next|react|python|fastapi|stripe|ai (agent|engineer|developer|automation)|agent|llm|claude|openai|gpt|rag|mcp|backend|full[- ]?stack|saas|api|automation|chatbot|supabase|postgres)/i;
-  const UP_NEG = /\b(wordpress|elementor|shopify theme|php|laravel|java\b|spring boot|golang|rust|flutter|swift|kotlin|unity|unreal|german|deutsch|solidity|web3|blockchain|data entry|video edit|graphic design|logo design|bubble\.io|webflow|wix|squarespace|salesforce|aem|qa engineer|manual test|tester|glide|must be (located|based) in|us only|usa only|only us|uk only|us citizens?|onsite|on-site|scraping|scraper|pakistan|india|philippines|bangladesh|copywrit\w*|writer|voice ?over|songs?|drama|music|annotat\w*|data label\w*|evaluate (a |the )?(new )?(foundation )?models?|rlhf|tutor|video ads|tutorial videos?|screen recording|voice|ugc|video editor|animator)\b/i;
+  const UP_NEG = /\b(wordpress|elementor|shopify theme|php|laravel|java\b|spring boot|golang|rust|flutter|swift|kotlin|unity|unreal|german|deutsch|solidity|web3|blockchain|data entry|video edit|graphic design|logo design|bubble\.io|webflow|wix|squarespace|salesforce|aem|qa engineer|manual test|tester|glide|must be (located|based) in|us only|usa only|only us|uk only|us citizens?|onsite|on-site|scraping|scraper|pakistan|india|philippines|bangladesh|copywrit\w*|writer|voice ?over|songs?|drama|music|annotat\w*|data label\w*|evaluate (a |the )?(new )?(foundation )?models?|rlhf|tutor|video ads|tutorial videos?|screen recording|voice|ugc|video editor|animator|casino|gambling|betting|signals bot|forex)\b/i;
   const UP_SCAM = /(client interviews|on (my|our) behalf|your (upwork )?account|account (rental|sharing)|\bbidder\b|lead generation partner|pay (you )?per interview|telegram me|whatsapp me)/i;
 
   /* ======================= FILTROS FACEBOOK ======================= */
@@ -147,7 +147,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.3.7';
+  const VERSION = '1.3.8';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
@@ -588,7 +588,6 @@
       parse: (j) => (Array.isArray(j) ? j : []).filter((x) => /develop/i.test(x.category_name || 'develop')).map((x) => ({ id: x.url, title: x.title, co: x.company_name, loc: x.location, text: x.tags || '', url: x.url, date: x.pub_date })) },
     { name: 'WWR full-stack', url: 'https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss', rss: true },
     { name: 'WWR back-end', url: 'https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss', rss: true },
-    { name: 'Torre', custom: torreJobs },
     { name: 'HN Who is hiring', custom: hnJobs },
   ];
 
@@ -700,7 +699,7 @@
   const getTab = () => new Promise((r) => GM_getTab((t) => r(t || {})));
 
   function extractCards(re) {
-    const norm = (u) => u.split('?')[0].split('#')[0];
+    const norm = (u) => { const m = u.match(/currentJobId=(\d+)/); return m ? 'https://www.linkedin.com/jobs/view/' + m[1] + '/' : u.split('?')[0].split('#')[0]; };
     const map = new Map();
     for (const a of document.querySelectorAll('a[href]')) {
       const h = norm(a.href);
