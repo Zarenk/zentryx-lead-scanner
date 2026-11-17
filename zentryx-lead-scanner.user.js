@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.5.2
+// @version      1.5.3
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -154,7 +154,7 @@
   /* ======================= DIAGNÓSTICO SEMANAL ======================= */
   // Guarda por semana: cuántas ofertas/posts vio, cuántas pasaron, motivos de descarte,
   // "casi pasan" (descartadas por un solo motivo) y errores. Sirve para afinar filtros cada semana.
-  const VERSION = '1.4.0';
+  const VERSION = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '?';
   function weekKey() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
   function diagLoad() {
     let D = GM_getValue('diag', null);
