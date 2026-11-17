@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.5.0
+// @version      1.5.1
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -119,7 +119,7 @@
   const UP_SCAM = /(client interviews|on (my|our) behalf|your (upwork )?account|account (rental|sharing)|\bbidder\b|lead generation partner|pay (you )?per interview|telegram me|whatsapp me)/i;
 
   /* ======================= FILTROS FACEBOOK ======================= */
-  const FB_B = /(busc(o|amos|a|ando)\b|estamos contratando|oportunidad laboral|se requiere|hiring|we.?re looking|looking for|necesit|requier|cotiz|se busca|vacante|convocatoria|contrat(ar|amos)|solicit|presupuesto|quien (me )?(haga|desarrolle|pueda)|quien sepa|alguien que (sepa|pueda|haga)|interesados? (escrib|envi)|env[ií]en (su )?cv|dejar contacto|recomi[eé]nden(me)? (un|a|alg)|cu[aá]nto (cobran|costar[ií]a|me cobrar))/i;
+  const FB_B = /(busc(o|amos|a|ando)\b|\(\d+ perf|\d+ perfiles|perfil(es)? requerid|(analista|ingeniero|desarrollador|programador|developer|engineer)[^.\n]{0,40}(senior|semi ?senior|ssr|sr\.?|junior|jr\.?|freelance|remoto)\b|(senior|semi ?senior|sr\.?)\s+(full ?stack|backend|developer|desarrollador)|estamos contratando|oportunidad laboral|se requiere|hiring|we.?re looking|looking for|necesit|requier|cotiz|se busca|vacante|convocatoria|contrat(ar|amos)|solicit|presupuesto|quien (me )?(haga|desarrolle|pueda)|quien sepa|alguien que (sepa|pueda|haga)|interesados? (escrib|envi)|env[ií]en (su )?cv|dejar contacto|recomi[eé]nden(me)? (un|a|alg)|cu[aá]nto (cobran|costar[ií]a|me cobrar))/i;
   const FB_T = /(sistema|software|app\b|aplicaci|web|programador|desarrollador|developer|full ?stack|backend|erp|punto de venta|\bpos\b|factura|bot\b|chatbot|\bia\b|inteligencia artificial|automatiz|plataforma|integraci|\bapi|node|python|react|next|nest|claude|agente|scraping|tienda virtual|e-?commerce|landing|base de datos|inventario|whatsapp|crm|reservas|delivery)/i;
   const FB_X = /(ofrezco|ofrecemos|brindamos|realiz(o|amos)|hacemos (p[aá]ginas|sistemas|apps)|desarrollo de software para|somos (una )?(empresa|agencia)|cursos?\b|clases|aprende|carrera|bootcamp|promoci[oó]n|descuento|busco (empleo|trabajo|nuevos proyectos|proyectos|oportunidad|clientes)|estoy buscando (empleo|trabajo)|practicantes|soy (programador|desarrollador|ingeniero|estudiante)|mi portafolio|disponible para|encuestador|embajador|asistente virtual|community manager|link de mega|power bi|presencial|cofundador|socio|ofrecer tus servicios|as[ií] quedar[ií]a tu negocio|sistema a la medida para|hosting|reseller|demo gratis|vendo |venta de)/i;
 
