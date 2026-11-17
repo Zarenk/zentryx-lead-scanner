@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.4.0
+// @version      1.5.0
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -59,19 +59,26 @@
     facebook: {
       cycleMin: 40,                    // un ciclo completo (feeds + búsquedas) cada ~40 min (ritmo humano, cuenta personal)
       scrolls: 10,
-      maxAgeHFeed: 12, maxAgeHSearch: 48,
+      maxAgeHFeed: 72, maxAgeHSearch: 72,   // los grupos tienen poca actividad; el filtro de vistos evita repetidos
       feeds: [
         'https://www.facebook.com/groups/1025454714150122/?sorting_setting=CHRONOLOGICAL', // Programadores-Perú
         'https://www.facebook.com/groups/327987354235895/?sorting_setting=CHRONOLOGICAL',  // Bolsa de trabajo Perú
         'https://www.facebook.com/groups/808991849115782/?sorting_setting=CHRONOLOGICAL',  // Trabajos para programadores
         'https://www.facebook.com/groups/1497902218311845/?sorting_setting=CHRONOLOGICAL', // Claude Code en Español
         'https://www.facebook.com/groups/bolsatrabajo.it.developers/?sorting_setting=CHRONOLOGICAL',
+        // v1.5.0: antes solo se usaban con búsqueda interna, que devuelve posts de hace meses
+        'https://www.facebook.com/groups/proyectosfreelance/?sorting_setting=CHRONOLOGICAL',
+        'https://www.facebook.com/groups/475265154766640/?sorting_setting=CHRONOLOGICAL',
+        'https://www.facebook.com/groups/workia/?sorting_setting=CHRONOLOGICAL',
+        'https://www.facebook.com/groups/494026930771842/?sorting_setting=CHRONOLOGICAL',
+        'https://www.facebook.com/groups/699310987305660/?sorting_setting=CHRONOLOGICAL',
+        'https://www.facebook.com/groups/empleos.programadores.remotos/?sorting_setting=CHRONOLOGICAL',
       ],
       searchGroups: ['proyectosfreelance', '475265154766640', 'workia', '494026930771842', '699310987305660', 'empleos.programadores.remotos'],
       searchTerms: ['busco programador', 'sistema', 'necesito', 'cotización', 'desarrollador', 'app', 'ERP', 'requiero'],
       // Búsqueda global de publicaciones recientes en TODO Facebook (grupos públicos de LATAM, etc.)
       globalTerms: ['busco programador', 'necesito un sistema', 'busco desarrollador web', 'necesito una app', 'cotizar sistema', 'busco desarrollador full stack', 'necesito automatizar'],
-      searchesPerCycle: 2,             // búsquedas (en grupos + globales) rotativas por ciclo
+      searchesPerCycle: 1,             // búsquedas (en grupos + globales) rotativas por ciclo
     },
     // Pestaña "general": rota por estas webs (necesitan navegador; LinkedIn usa tu sesión).
     general: {
@@ -112,7 +119,7 @@
   const UP_SCAM = /(client interviews|on (my|our) behalf|your (upwork )?account|account (rental|sharing)|\bbidder\b|lead generation partner|pay (you )?per interview|telegram me|whatsapp me)/i;
 
   /* ======================= FILTROS FACEBOOK ======================= */
-  const FB_B = /(busc(o|amos|a)\b|necesit|requier|cotiz|se busca|vacante|convocatoria|contrat(ar|amos)|solicit|presupuesto|quien (me )?(haga|desarrolle|pueda)|quien sepa|alguien que (sepa|pueda|haga)|interesados? (escrib|envi)|env[ií]en (su )?cv|dejar contacto|recomi[eé]nden(me)? (un|a|alg)|cu[aá]nto (cobran|costar[ií]a|me cobrar))/i;
+  const FB_B = /(busc(o|amos|a|ando)\b|estamos contratando|oportunidad laboral|se requiere|hiring|we.?re looking|looking for|necesit|requier|cotiz|se busca|vacante|convocatoria|contrat(ar|amos)|solicit|presupuesto|quien (me )?(haga|desarrolle|pueda)|quien sepa|alguien que (sepa|pueda|haga)|interesados? (escrib|envi)|env[ií]en (su )?cv|dejar contacto|recomi[eé]nden(me)? (un|a|alg)|cu[aá]nto (cobran|costar[ií]a|me cobrar))/i;
   const FB_T = /(sistema|software|app\b|aplicaci|web|programador|desarrollador|developer|full ?stack|backend|erp|punto de venta|\bpos\b|factura|bot\b|chatbot|\bia\b|inteligencia artificial|automatiz|plataforma|integraci|\bapi|node|python|react|next|nest|claude|agente|scraping|tienda virtual|e-?commerce|landing|base de datos|inventario|whatsapp|crm|reservas|delivery)/i;
   const FB_X = /(ofrezco|ofrecemos|brindamos|realiz(o|amos)|hacemos (p[aá]ginas|sistemas|apps)|desarrollo de software para|somos (una )?(empresa|agencia)|cursos?\b|clases|aprende|carrera|bootcamp|promoci[oó]n|descuento|busco (empleo|trabajo|nuevos proyectos|proyectos|oportunidad|clientes)|estoy buscando (empleo|trabajo)|practicantes|soy (programador|desarrollador|ingeniero|estudiante)|mi portafolio|disponible para|encuestador|embajador|asistente virtual|community manager|link de mega|power bi|presencial|cofundador|socio|ofrecer tus servicios|as[ií] quedar[ií]a tu negocio|sistema a la medida para|hosting|reseller|demo gratis|vendo |venta de)/i;
 
@@ -331,7 +338,7 @@
   }
 
   /* ======================= ESCÁNER FACEBOOK ======================= */
-  const MESES = { enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5, julio: 6, agosto: 7, septiembre: 8, setiembre: 8, octubre: 9, noviembre: 10, diciembre: 11 };
+  const MESES = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, sept: 8, set: 8, oct: 9, nov: 10, dic: 11, enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5, julio: 6, agosto: 7, septiembre: 8, setiembre: 8, octubre: 9, noviembre: 10, diciembre: 11 };
 
   function fbAge(t) {
     let g = t.match(/(Hace|hace) (\d+|un|una) (minutos?|horas?|d[ií]as?|semanas?)/);
@@ -347,7 +354,7 @@
     }
     g = t.slice(0, 200).match(/\s(Ayer)\b/);
     if (g) return { h: 24, idx: g.index, len: g[0].length };
-    g = t.slice(0, 200).match(/\s(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)/i);
+    g = t.slice(0, 200).match(/\s(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sept?|set|oct|nov|dic)\b/i);
     if (g) {
       const now = new Date();
       let d = new Date(now.getFullYear(), MESES[g[2].toLowerCase()], +g[1]);
@@ -366,7 +373,7 @@
       let nodes = [...document.querySelectorAll('div[aria-posinset]')];
       if (!nodes.length) nodes = [...document.querySelectorAll('div[role="article"]')].filter((a) => !a.parentElement.closest('div[role="article"]'));
       nodes.forEach((a) => {
-        let t = a.innerText.replace(/(Facebook\s*)+/g, ' ').replace(/[͏​]/g, '').replace(/\s+/g, ' ').replace(/(?:\S ){6,}\S?/g, ' ').trim();
+        let t = a.innerText.normalize('NFKC').replace(/(Facebook\s*)+/g, ' ').replace(/[͏​]/g, '').replace(/\s+/g, ' ').replace(/(?:\S ){6,}\S?/g, ' ').trim();
         if (t.length < 25) return;
         const c = t.search(/Comentas como|Responde como|Todas las reacciones|Me gusta Comentar/);
         if (c > 0) t = t.slice(0, c);
@@ -376,7 +383,16 @@
         posts.set(t.slice(0, 60), { t, img, link });
       });
     };
-    for (let i = 0; i < C.scrolls; i++) { collect(); window.scrollBy(0, 1400); await sleep(1500); }
+    // Expande "Ver más" para que los filtros lean el texto completo y no solo la vista previa
+    const expand = async () => {
+      let k = 0;
+      document.querySelectorAll('div[aria-posinset] div[role="button"], div[role="article"] div[role="button"]').forEach((b) => {
+        if (k < 8 && /^(Ver más|See more)$/.test(b.innerText.trim())) { b.click(); k++; }
+      });
+      if (k) await sleep(700);
+    };
+    for (let i = 0; i < C.scrolls; i++) { await expand(); collect(); window.scrollBy(0, 1400); await sleep(1500); }
+    await expand();
     collect();
     if (posts.size <= 3) return { frozen: true, n: posts.size };
 
@@ -411,9 +427,8 @@
     const C = CFG.facebook;
     if (i < C.feeds.length) return { url: C.feeds[i], search: false };
     const all = [];
-    C.searchGroups.forEach((g) => C.searchTerms.forEach((q) => all.push(`https://www.facebook.com/groups/${g}/search/?q=${encodeURIComponent(q)}${FB_RECENT}`)));
-    // intercalar búsquedas globales (1 de cada 3)
-    C.globalTerms.forEach((q, n) => all.splice(Math.min(all.length, n * 3), 0, `https://www.facebook.com/search/posts/?q=${encodeURIComponent(q)}${FB_RECENT}`));
+    // v1.5.0: solo búsqueda global; la búsqueda dentro de grupos ignora el filtro de recientes
+    C.globalTerms.forEach((q) => all.push(`https://www.facebook.com/search/posts/?q=${encodeURIComponent(q)}${FB_RECENT}`));
     const k = (GM_getValue('fbSearchIdx', 0) + (i - C.feeds.length)) % all.length;
     return { url: all[k], search: true };
   }
