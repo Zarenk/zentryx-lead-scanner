@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.5.1
+// @version      1.5.2
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -785,7 +785,10 @@
       if (n) w.push('excl:' + n);
     } else {
       if (!JOB_TITLE.test(title)) w.push('titulo');
-      const n = (title.toLowerCase().match(JOB_NEG) || [])[0];
+      // Empresas que ya rechazaron o descartadas (ver estado_postulaciones)
+      const co = (low.match(/\b(witi|bluetab|koombea|oowlish|abstra|applaudo|kms technology|coderio)\b/) || [])[0];
+      if (co) w.push('empresa:' + co);
+      const n = (title.toLowerCase().match(JOB_NEG) || [])[0] || (title.match(/\bgo (software |backend |back-end )?(developer|engineer|desarrollador)/i) || [])[0];
       if (n) w.push('excl:' + n);
       if (kind === 'local' && !/(remoto|teletrabajo|home office|trabajo desde casa|tacna)/i.test(t)) w.push('no_remoto');
       if (kind === 'job' && LOC_BAD.test(t)) w.push('ubicacion');
