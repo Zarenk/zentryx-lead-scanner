@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.5.3
+// @version      1.6.0
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -46,13 +46,15 @@
     quietFrom: 23, quietTo: 7,         // avisos silenciosos (sin sonido) en este rango
     summaryHour: 21,                   // resumen diario por Telegram
     upwork: {
-      dwellMin: 4,                     // minutos entre páginas => cada página se revisa cada ~16 min
-      maxAgeMin: 180,                  // solo ofertas publicadas hace <= 3 h (el dedup evita repetidos)
+      dwellMin: 2.5,                   // minutos entre páginas => cada búsqueda se revisa cada ~15 min (las ofertas se llenan en <1 h)
+      maxAgeMin: 60,                   // solo ofertas de la última hora: después ya suelen tener 20-50+ propuestas
       pages: [
         UP_BASE + '&q=' + encodeURIComponent('(nestjs OR nextjs OR "next.js" OR fastapi OR "ai agent" OR claude OR stripe OR supabase OR typescript OR llm)'),
         UP_BASE + '&q=' + encodeURIComponent('(python OR "node.js" OR openai OR langchain OR rag OR "ai automation" OR chatbot OR saas OR prisma OR postgresql)'),
         UP_BASE + '&q=' + encodeURIComponent('(erp OR "multi-tenant" OR "admin panel" OR dashboard OR mvp OR "web app" OR automation OR n8n OR webhook OR "api integration")'),
         UP_BASE + '&category2_uid=531770282580668418',
+        // Nicho con menos competencia: clientes que piden español / LATAM (solo categoría desarrollo)
+        UP_BASE + '&category2_uid=531770282580668418&q=' + encodeURIComponent('(spanish OR español OR "latin america" OR latam OR peru OR mexico OR colombia OR chile OR argentina)'),
         'https://www.upwork.com/nx/find-work/best-matches',
       ],
     },
@@ -310,7 +312,7 @@
 
       const why = [];
       if (!/Payment verified/.test(x)) why.push('sin_pago');
-      if (!(pm <= 15 || (pm <= 20 && sp >= 5e4))) why.push('propuestas');
+      if (!(pm <= 10 || (pm <= 15 && sp >= 5e4))) why.push('propuestas');
       if (!rateOK) why.push('tarifa');
       if (!stackOK) why.push('stack');
       if (!devTitle || nonDevTitle) why.push('titulo_no_dev');
@@ -323,9 +325,10 @@
       const loc = (x.match(/Location\s+([A-Za-z .]+?)(?= Hourly| Fixed| Est| Intermediate| Expert| Entry|$)/) || [])[1] || '';
       const rating = (x.match(/Rating is ([\d.]+) out of 5/) || [])[1];
       const prio = pm <= 4 && m <= 30 && sp >= 1e4 && (maxRate === null || maxRate >= 40);
+      const urg = pm <= 4 && m <= 20;            // recién publicada y casi sin propuestas: postular YA
       keys.push(key);
       leads.push(
-        `${prio ? '★ PRIORIDAD ' : ''}[UPWORK] ${m < 60 ? m + ' min' : Math.round(m / 60) + ' h'} · ${p} propuestas\n` +
+        `${urg ? '🔥 URGENTE ' : ''}${prio ? '★ PRIORIDAD ' : ''}[UPWORK] ${m < 60 ? m + ' min' : Math.round(m / 60) + ' h'} · ${p} propuestas\n` +
         `${title}\n` +
         `${hr[1] ? '$' + hr[1] + (hr[2] ? '-' + hr[2] : '') + '/h' : 'Fijo $' + (fx || '?')} · ` +
         `${sp === 0 ? 'CLIENTE NUEVO ($0)' : 'gasto $' + (sp >= 1e3 ? Math.round(sp / 1e3) + 'K' : sp)}` +
@@ -579,7 +582,8 @@
     stat(host);
     if (r.leads.length) {
       stat('leads', r.leads.length);
-      r.leads.forEach((l) => tg(l));
+      // Upwork: solo las URGENTES suenan; el resto llega en silencio para no gastar tu atención
+      r.leads.forEach((l) => tg(l, host === 'upwork' && !l.startsWith('🔥') ? { silent: true } : {}));
       seenAdd(r.keys);
     }
     const label = `${r.leads.length} nuevo(s) de ${r.n}`;
