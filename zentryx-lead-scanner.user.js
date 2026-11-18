@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.6.0
+// @version      1.6.1
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -480,8 +480,32 @@
       GM_openInTab(START[m], { active: false, insert: true });
     }
   }
+  // Recarga solo cuando hay red: si la laptop recién despierta y el WiFi no volvió, recargar dejaría
+  // la pestaña en la página de error de Chrome, donde el script ya no corre (pestaña muerta).
+  let reloading = false;
+  async function safeReload(why) {
+    if (reloading) return; reloading = true;
+    for (let k = 0; k < 40; k++) {                      // hasta ~20 min esperando conexión
+      try {
+        if (navigator.onLine) {
+          const r = await fetch(location.origin + '/favicon.ico', { cache: 'no-store', credentials: 'omit' });
+          if (r.ok || r.status < 500) break;
+        }
+      } catch (e) { /* sin red todavía */ }
+      showBadge(`sin conexión tras ${why}; reintento en 30 s`);
+      await sleep(30e3);
+    }
+    location.reload();
+  }
   function watchdog() {
-    const check = () => { if (dueAt && Date.now() > dueAt + 3 * 60e3) { dueAt = 0; location.reload(); return; } heal(); };
+    let lastTick = Date.now();
+    const check = () => {
+      const now = Date.now(), gap = now - lastTick; lastTick = now;
+      // Salto grande entre ticks = la laptop estuvo suspendida (tapa cerrada) o Chrome congeló la pestaña.
+      if (gap > 5 * 60e3) { diagErr('despertar:' + host); showBadge(`reanudando tras ~${Math.round(gap / 6e4)} min suspendido`); setTimeout(() => safeReload('suspensión'), 20e3); return; }
+      if (dueAt && now > dueAt + 3 * 60e3) { dueAt = 0; safeReload('atraso'); return; }
+      heal();
+    };
     setInterval(check, 60e3);
     document.addEventListener('visibilitychange', check);
     document.addEventListener('resume', check);
