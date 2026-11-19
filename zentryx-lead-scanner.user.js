@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.6.2
+// @version      1.6.3
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -303,17 +303,21 @@
       const hr = x.match(/Hourly:?\s*\$([\d.]+)(?:\s*-\s*\$([\d.]+))?/) || [];
       const fx = (x.match(/Est\. budget:\s*\$([\d,.]+)/) || [])[1];
       const maxRate = hr[1] ? +(hr[2] || hr[1]) : null;
-      const rateOK = hr[1] ? maxRate >= 25 : fx ? +fx.replace(/,/g, '') >= 200 : true;
+      const fxN = fx ? +fx.replace(/,/g, '') : null;
+      // Retro de revisiones (19 nov): fijo con horas declaradas -> $/h efectivo; mínimo $35/h.
+      const hrsDecl = +((x.match(/\b(\d{1,3})[- ]?(?:hours?|hrs?)\b/i) || [])[1] || 0);
+      const rateOK = hr[1] ? maxRate >= 35 : fxN !== null ? fxN >= 200 && (!hrsDecl || fxN / hrsDecl >= 25) : true;
       const pos = [...new Set((x.toLowerCase().match(UP_POS) || []))];
       const stackOK = pos.length >= 3 || (pos.length >= 2 && UP_CORE.test(title));
       // El título debe ser de desarrollo, no de marketing/ventas/diseño/asistencia.
       const devTitle = /(develop|engineer|programm|coder|full[- ]?stack|back[- ]?end|front[- ]?end|api|integrat|automat|build|bot\b|agent|saas|mvp|app\b|web app|platform|script|fix|debug|migrat|architect|technical|devops|database|scrap)/i.test(title);
-      const nonDevTitle = /(assistant|\bva\b|virtual assistant|marketing|marketer|seo|google ads|ads specialist|link building|\bpr\b|outreach|sales|closer|affiliate|recruit|copywrit|writer|content|social media|designer|figma|ui\/ux|ux\/ui|video|editor|tutor|coach|bookkeep|accountant|customer (service|support)|answering|appointment setter|lead gen|data entry|\bea\b|mt[45]|forex|trading bot)/i.test(title);
+      const nonDevTitle = /(assistant|\bva\b|virtual assistant|marketing|marketer|seo|google ads|ads specialist|link building|\bpr\b|outreach|sales|closer|affiliate|recruit|copywrit|writer|content|social media|designer|figma|ui\/ux|ux\/ui|video|editor|tutor|coach|bookkeep|accountant|customer (service|support)|answering|appointment setter|lead gen|data entry|\bea\b|mt[45]|forex|trading bot|day trading|ninox)/i.test(title);
 
       const why = [];
       if (!/Payment verified/.test(x)) why.push('sin_pago');
       if (!(pm <= 10 || (pm <= 15 && sp >= 5e4))) why.push('propuestas');
       if (!rateOK) why.push('tarifa');
+      if (sp === 0 && fxN !== null && fxN < 500) why.push('cliente_nuevo_barato');
       if (!stackOK) why.push('stack');
       if (!devTitle || nonDevTitle) why.push('titulo_no_dev');
       const neg = (x.match(UP_NEG) || [])[0];
