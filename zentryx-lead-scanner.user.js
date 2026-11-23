@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Zentryx Lead Scanner
 // @namespace    zarenk
-// @version      1.6.3
+// @version      1.6.4
 // @description  Escanea Upwork, Facebook, Workana, Freelancer, Get on Board, LinkedIn, Computrabajo, Bumeran, LinkedIn posts, Torre, HN y bolsas remotas (APIs); filtra y avisa por Telegram.
 // @match        https://www.upwork.com/*
 // @match        https://www.facebook.com/*
@@ -324,6 +324,11 @@
       if (neg) why.push('excl:' + neg.toLowerCase());
       if (UP_SCAM.test(x)) why.push('estafa');
       diag('upwork', why, `${title.slice(0, 60)} | ${hr[1] ? '$' + (hr[2] || hr[1]) + '/h' : 'fijo $' + (fx || '?')} | ${p} | ${pos.length}st`);
+      // v1.6.4: si lo ÚNICO que falla es el filtro de región (pakistan/india/philippines/bangladesh) y la oferta
+      // es excelente por lo demás (≤4 propuestas, <=60 min), avisar igual marcada para revisión manual,
+      // en vez de perderla (el filtro mira todo el texto de la tarjeta, no solo el país del cliente).
+      let regionFlag = false;
+      if (why.length === 1 && /^excl:(pakistan|india|philippines|bangladesh)$/.test(why[0]) && pm <= 4) { regionFlag = true; why.length = 0; }
       if (why.length) continue;
 
       const loc = (x.match(/Location\s+([A-Za-z .]+?)(?= Hourly| Fixed| Est| Intermediate| Expert| Entry|$)/) || [])[1] || '';
@@ -332,7 +337,7 @@
       const urg = pm <= 4 && m <= 20;            // recién publicada y casi sin propuestas: postular YA
       keys.push(key);
       leads.push(
-        `${urg ? '🔥 URGENTE ' : ''}${prio ? '★ PRIORIDAD ' : ''}[UPWORK] ${m < 60 ? m + ' min' : Math.round(m / 60) + ' h'} · ${p} propuestas\n` +
+        `${regionFlag ? '⚠️ REVISAR REGIÓN (cliente/texto menciona ' + (neg || 'región excluida') + ') ' : ''}${urg ? '🔥 URGENTE ' : ''}${prio ? '★ PRIORIDAD ' : ''}[UPWORK] ${m < 60 ? m + ' min' : Math.round(m / 60) + ' h'} · ${p} propuestas\n` +
         `${title}\n` +
         `${hr[1] ? '$' + hr[1] + (hr[2] ? '-' + hr[2] : '') + '/h' : 'Fijo $' + (fx || '?')} · ` +
         `${sp === 0 ? 'CLIENTE NUEVO ($0)' : 'gasto $' + (sp >= 1e3 ? Math.round(sp / 1e3) + 'K' : sp)}` +
@@ -790,7 +795,27 @@
       if (t.length < 40) return;
       map.set(urn, { h: 'https://www.linkedin.com/feed/update/' + urn + '/', title: t.slice(0, 90), t });
     });
+    // v1.6.4: LinkedIn cambió el DOM (nov 2026): ya no hay data-urn; cada post es un bloque
+    // componentkey="expanded…" cuyo texto empieza con "Publicación en el feed <autor> …" y no tiene enlace propio.
+    // Enlace de aviso = actividad reciente del autor; la clave de "visto" incluye un hash del texto.
+    const hs = (s) => { let x = 0; for (let i = 0; i < s.length; i++) x = (x * 31 + s.charCodeAt(i)) | 0; return (x >>> 0).toString(36); };
+    document.querySelectorAll('[componentkey^="expanded"]').forEach((el) => {
+      const t = clean(el.innerText).replace(/^(Publicaci[oó]n en el feed|Feed post)\s*/i, '').replace(/…\s*(ver más|see more|más)/gi, ' ').slice(0, 1500);
+      if (t.length < 40) return;
+      const prof = [...el.querySelectorAll('a[href*="/in/"]')].map((a) => a.pathname)[0] || '';
+      const h = 'https://www.linkedin.com' + (prof ? prof.replace(/\/$/, '') + '/recent-activity/all/' : '/feed/') + '#p' + hs(t.slice(0, 160));
+      if (map.has(h)) return;
+      map.set(h, { h, title: t.slice(0, 90), t });
+    });
     return [...map.values()];
+  }
+
+  // Edad de un post de LinkedIn nuevo ("49 min •", "3 h •", "2 días •", "1 sem •"); null si no se reconoce.
+  function liAgeH(t) {
+    const g = t.slice(0, 260).match(/(\d+)\s?(min|h|d[ií]as?|d|sem|semanas?|mes(?:es)?)\s*[•·]/i);
+    if (!g) return null;
+    const v = +g[1], u = g[2].toLowerCase();
+    return /^min/.test(u) ? v / 60 : u === 'h' ? v : /^d/.test(u) ? v * 24 : /^sem/.test(u) ? v * 168 : v * 720;
   }
 
   const HIRE = /(busc(o|amos|a)\b|necesit|requier|contrat|se busca|vacante|we('re| are) hiring|\bhiring\b|looking for (a |an )?([a-z-]+ )?(developer|engineer|freelancer|dev\b)|seeking (a |an )?([a-z-]+ )?(developer|engineer)|need (a |an )?([a-z-]+ )?(developer|engineer))/i;
@@ -836,6 +861,13 @@
 
   async function scanGeneric(src) {
     if (/login|authwall|checkpoint|signin|uas\/login/i.test(location.pathname)) return { login: true };
+    // v1.6.4: en LinkedIn la lista carga tarde (sobre todo en pestañas en segundo plano) y daba "sin resultados"
+    // falsos (gempty): esperar hasta 25 s a que aparezcan las tarjetas antes de contar.
+    if (location.hostname.includes('linkedin')) {
+      await waitFor(() => src.kind === 'posts'
+        ? document.querySelector('[componentkey^="expanded"], [data-urn*="activity"], [data-id*="activity"]')
+        : document.querySelector('[componentkey^="job-card-component-ref-"]'), 25000);
+    }
     await sleep(5000);
     for (let k = 0; k < 4; k++) { window.scrollBy(0, 1500); await sleep(1200); }
     document.querySelectorAll('.jobs-search-results-list, .scaffold-layout__list, .scaffold-layout__list > div').forEach((el) => { el.scrollTop = el.scrollHeight; });
@@ -850,6 +882,7 @@
       if (seenCheck(key) || keys.includes(key)) continue;
       const age = src.kind === 'posts' ? fbAge(' ' + c.t) : null;
       if (age && age.h > 48) continue;
+      if (src.kind === 'posts' && !age) { const lh = liAgeH(c.t); if (lh !== null && lh > 48) continue; }
       const why = genWhy(src.kind, c.title, c.t);
       diag('general', why, `${src.name} | ${c.title.slice(0, 60)}`);
       if (warm) { keys.push(key); continue; }   // primera vez: solo memoriza, no avisa (evita aluvión)
